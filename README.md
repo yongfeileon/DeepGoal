@@ -1,6 +1,6 @@
-[📖 中文版](./README_CN.md)
-
 [![PyPI version](https://badge.fury.io/py/deepgoal.svg)](https://pypi.org/project/deepgoal/)
+
+[📖 中文版](./README_CN.md)
 
 # DeepGoal
 An AI Agent framework for goal-driven automatic programming.
