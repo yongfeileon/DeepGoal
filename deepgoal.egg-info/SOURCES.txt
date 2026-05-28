@@ -1,7 +1,0 @@
-README.md
-pyproject.toml
-deepgoal/__init__.py
-deepgoal.egg-info/PKG-INFO
-deepgoal.egg-info/SOURCES.txt
-deepgoal.egg-info/dependency_links.txt
-deepgoal.egg-info/top_level.txt
