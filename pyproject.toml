@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepgoal"
+version = "0.0.1"
+description = "An AI Agent framework for goal-driven automatic programming. (Coming soon!)"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your@email.com"}
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+include = ["deepgoal*"]
