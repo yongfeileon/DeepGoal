@@ -1,3 +1,5 @@
+[📖 English Version](./README.md)
+
 [![PyPI version](https://badge.fury.io/py/deepgoal.svg)](https://pypi.org/project/deepgoal/)
 
 # DeepGoal
