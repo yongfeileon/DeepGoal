@@ -21,12 +21,15 @@ __pycache__/
 htmlcov/
 .tox/
 .nox/
+tests/
 
 # Virtual environments
 venv/
 .venv/
 env/
 .env/
+.env
+.env.test
 
 # IDE
 .idea/
@@ -37,3 +40,15 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code
+.claude/
+.claude.json
+CLAUDE.md
+
+
+# clone
+_core_clone/
+
+# local
+.*/
