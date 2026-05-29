@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from enum import Enum
-from typing import Any, Literal, Protocol
+from typing import Literal, TypeAlias
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from .common import JsonValue
 
 
 class HookEvent(str, Enum):
@@ -19,6 +22,10 @@ class HookEvent(str, Enum):
     PERMISSION_REQUEST = "PermissionRequest"
 
 
+class HookPayload(BaseModel):
+    data: dict[str, JsonValue] = Field(default_factory=dict)
+
+
 class HookResult(BaseModel):
     continue_: bool = True
     decision: Literal["block"] | None = None
@@ -26,7 +33,4 @@ class HookResult(BaseModel):
     additional_context: str | None = None
 
 
-class HookHandler(Protocol):
-    async def __call__(
-        self, event: HookEvent, payload: dict[str, Any]
-    ) -> HookResult: ...
+HookHandler: TypeAlias = Callable[[HookEvent, HookPayload], Awaitable[HookResult]]

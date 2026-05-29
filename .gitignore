@@ -1,10 +1,9 @@
 # Build artifacts
 dist/
-*.egg-info/
 build/
-
-# Documentation
-_docs/
+*.egg-info/
+.eggs/
+*.egg
 
 # Python
 __pycache__/
@@ -12,8 +11,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-*.egg
-.eggs/
 
 # Testing
 .pytest_cache/
@@ -21,7 +18,9 @@ __pycache__/
 htmlcov/
 .tox/
 .nox/
-tests/
+
+# Documentation drafts
+_docs/
 
 # Virtual environments
 venv/
@@ -46,9 +45,9 @@ Thumbs.db
 .claude.json
 CLAUDE.md
 
-
-# clone
+# Runtime clone
 _core_clone/
+deepgoal/_core_clone/
 
-# local
+# Local hidden folders
 .*/

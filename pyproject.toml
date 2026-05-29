@@ -5,16 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "deepgoal"
 version = "0.0.2"
-description = "An AI Agent framework for goal-driven automatic programming. (Coming soon!)"
+description = "A pre-alpha AI Agent framework for goal-driven automatic programming."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your@email.com"}
+    {name = "Yongfei Leon", email = "yongfeileon@users.noreply.github.com"}
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
 ]
 requires-python = ">=3.11"
 dependencies = [
@@ -29,10 +32,25 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.0.0",
     "mypy>=1.0.0",
+    "build>=1.0.0",
+    "twine>=5.0.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["deepgoal*"]
+[tool.setuptools]
+include-package-data = false
+packages = [
+    "deepgoal",
+    "deepgoal.core",
+    "deepgoal.core.agents",
+    "deepgoal.core.engines",
+    "deepgoal.core.pipeline",
+    "deepgoal.core.tools",
+    "deepgoal.core.types",
+    "deepgoal.core.utils",
+    "deepgoal.launcher",
+]
 
 [project.urls]
+Homepage = "https://github.com/yongfeileon/DeepGoal"
 Repository = "https://github.com/yongfeileon/DeepGoal"
+Issues = "https://github.com/yongfeileon/DeepGoal/issues"

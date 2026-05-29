@@ -1,19 +1,83 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
-from .types import EngineOptions
+from pydantic import BaseModel, Field
+
+from .types.common import JsonValue
+from .types.engine import EngineOptions
 
 
-class NodeResult:
-    def __init__(self, success: bool, output_file_path: str, error: str | None = None) -> None:
-        self.success = success
-        self.output_file_path = output_file_path
-        self.error = error
+class Artifact(BaseModel):
+    path: str
+    kind: str | None = None
+    mime_type: str | None = None
+    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+
+
+class ExecutionError(BaseModel):
+    type: str
+    message: str
+    details: dict[str, JsonValue] = Field(default_factory=dict)
+    traceback: str | None = None
+    recoverable: bool = False
+
+
+class ExecutionMetrics(BaseModel):
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    duration_seconds: float | None = None
+
+
+class PipelineInput(BaseModel):
+    primary_path: str | None = None
+    artifacts: list[Artifact] = Field(default_factory=list)
+    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+
+    @classmethod
+    def from_path(cls, path: str) -> PipelineInput:
+        return cls(primary_path=path)
+
+    def to_output(self) -> PipelineOutput:
+        return PipelineOutput(primary_path=self.primary_path, artifacts=list(self.artifacts), metadata=dict(self.metadata))
+
+
+class PipelineOutput(BaseModel):
+    primary_path: str | None = None
+    artifacts: list[Artifact] = Field(default_factory=list)
+    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+
+    @classmethod
+    def from_path(cls, path: str) -> PipelineOutput:
+        return cls(primary_path=path)
+
+    def to_input(self) -> PipelineInput:
+        return PipelineInput(primary_path=self.primary_path, artifacts=list(self.artifacts), metadata=dict(self.metadata))
+
+
+class PipelineResult(BaseModel):
+    success: bool
+    output: PipelineOutput = Field(default_factory=PipelineOutput)
+    error: ExecutionError | None = None
+    metrics: ExecutionMetrics | None = None
+
+    @classmethod
+    def ok(cls, output: PipelineOutput | None = None, metrics: ExecutionMetrics | None = None) -> PipelineResult:
+        return cls(success=True, output=output or PipelineOutput(), metrics=metrics)
+
+    @classmethod
+    def fail(
+        cls,
+        error: ExecutionError,
+        output: PipelineOutput | None = None,
+        metrics: ExecutionMetrics | None = None,
+    ) -> PipelineResult:
+        return cls(success=False, output=output or PipelineOutput(), error=error, metrics=metrics)
 
 
 class Node(ABC):
-    """流水线的基本单元：容器和执行器的共同接口。"""
+    """Pipeline container with an explicit input/output boundary."""
 
     @abstractmethod
-    async def run(self, input_file_path: str, options: EngineOptions) -> NodeResult: ...
+    async def run(self, input: PipelineInput, options: EngineOptions) -> PipelineResult: ...

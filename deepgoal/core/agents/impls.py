@@ -1,41 +1,45 @@
 from __future__ import annotations
 
-from ..node import NodeResult
+from ..node import PipelineInput, PipelineOutput, PipelineResult
 from ..types import EngineOptions
 from .base import BaseAgent
 
 
 class AnalysisAgent(BaseAgent):
-    async def execute(self, input_file_path: str, options: EngineOptions) -> NodeResult:
-        print(f"[AnalysisAgent] {input_file_path} -> {self.output_file_path}")
-        return NodeResult(success=True, output_file_path=self.output_file_path)
+    async def execute(self, input: PipelineInput, options: EngineOptions) -> PipelineResult:
+        print(f"[AnalysisAgent] {input.primary_path} -> {self.output.primary_path}")
+        return PipelineResult.ok(output=self.output)
 
 
 class DecompositionAgent(BaseAgent):
-    async def execute(self, input_file_path: str, options: EngineOptions) -> NodeResult:
-        print(f"[DecompositionAgent] {input_file_path} -> {self.output_file_path}")
-        return NodeResult(success=True, output_file_path=self.output_file_path)
+    async def execute(self, input: PipelineInput, options: EngineOptions) -> PipelineResult:
+        print(f"[DecompositionAgent] {input.primary_path} -> {self.output.primary_path}")
+        return PipelineResult.ok(output=self.output)
 
 
 class PlanningAgent(BaseAgent):
-    async def execute(self, input_file_path: str, options: EngineOptions) -> NodeResult:
-        print(f"[PlanningAgent] {input_file_path} -> {self.output_file_path}")
-        return NodeResult(success=True, output_file_path=self.output_file_path)
+    async def execute(self, input: PipelineInput, options: EngineOptions) -> PipelineResult:
+        print(f"[PlanningAgent] {input.primary_path} -> {self.output.primary_path}")
+        return PipelineResult.ok(output=self.output)
 
 
 class TaskAgent(BaseAgent):
-    async def execute(self, input_file_path: str, options: EngineOptions) -> NodeResult:
-        print(f"[TaskAgent] {input_file_path} -> {self.output_file_path}")
-        return NodeResult(success=True, output_file_path=self.output_file_path)
+    async def execute(self, input: PipelineInput, options: EngineOptions) -> PipelineResult:
+        print(f"[TaskAgent] {input.primary_path} -> {self.output.primary_path}")
+        return PipelineResult.ok(output=self.output)
 
 
 class ExecutorAgent(BaseAgent):
-    async def execute(self, input_file_path: str, options: EngineOptions) -> NodeResult:
-        print(f"[ExecutorAgent] {input_file_path} -> {self.output_file_path}")
-        return NodeResult(success=True, output_file_path=self.output_file_path)
+    async def execute(self, input: PipelineInput, options: EngineOptions) -> PipelineResult:
+        print(f"[ExecutorAgent] {input.primary_path} -> {self.output.primary_path}")
+        return PipelineResult.ok(output=self.output)
 
 
 class AcceptanceAgent(BaseAgent):
-    async def execute(self, input_file_path: str, options: EngineOptions) -> NodeResult:
-        print(f"[AcceptanceAgent] {input_file_path} -> {self.output_file_path}")
-        return NodeResult(success=True, output_file_path=self.output_file_path)
+    async def execute(self, input: PipelineInput, options: EngineOptions) -> PipelineResult:
+        print(f"[AcceptanceAgent] {input.primary_path} -> {self.output.primary_path}")
+        return PipelineResult.ok(output=self.output)
+
+
+def output_path(path: str) -> PipelineOutput:
+    return PipelineOutput(primary_path=path)

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
 
+from .common import JsonValue
 from .enums import McpServerType
+
+
+class ToolParams(BaseModel):
+    values: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class McpServerConfig(BaseModel):
@@ -18,7 +21,7 @@ class McpServerConfig(BaseModel):
 
 class ToolConfig(BaseModel):
     name: str
-    params: dict[str, Any] = Field(default_factory=dict)
+    params: ToolParams = Field(default_factory=ToolParams)
 
 
 class SkillConfig(BaseModel):
