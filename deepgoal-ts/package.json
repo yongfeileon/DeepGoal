@@ -30,10 +30,12 @@
   "author": "Yongfei Leon",
   "license": "MIT",
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.0",
     "typescript": "^5.3.0"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.156"
+    "@anthropic-ai/claude-agent-sdk": "^0.3.156",
+    "js-yaml": "^4.1.1"
   }
 }

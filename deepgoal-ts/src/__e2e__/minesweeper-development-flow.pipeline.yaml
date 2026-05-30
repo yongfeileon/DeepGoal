@@ -1,0 +1,63 @@
+version: 1
+
+pipeline:
+  type: serial
+
+engine:
+  permissionMode: bypassPermissions
+
+goal:
+  path: ${runtime.goalPath}
+  text: 实现一个静态html页面版的扫雷游戏，需要使用playwright mcp进行端到端测试
+
+paths:
+  workspace: ${runtime.workspaceDir}
+  goal: ${goal.path}
+  output: ${runtime.workspaceDir}
+
+artifacts:
+  requirements:
+    path: ${runtime.requirementsPath}
+  implementation:
+    path: ${runtime.implementationPath}
+  validationReport:
+    path: ${runtime.validationReportPath}
+  testEvidence:
+    path: ${runtime.testEvidenceDir}
+
+defaults:
+  executor: claude
+  cwd: ${paths.workspace}
+  goalPath: ${paths.goal}
+  model: ${env.ANTHROPIC_MODEL}
+  settingSources: []
+  strictMcpConfig: true
+
+stages:
+  - id: requirements
+    type: requirements-analysis
+    produces: requirements
+
+  - id: implementation
+    type: development
+    consumes:
+      - requirements
+    produces: implementation
+
+  - id: validation
+    type: testing
+    consumes:
+      - requirements
+      - implementation
+    produces: validationReport
+    artifactUrl: ${fileUrl:artifacts.implementation.path}
+    systemPrompt: 你是端到端测试工程师。必须使用 Playwright MCP 浏览器工具验证页面。最后只输出请求的 JSON 对象。
+    toolInstruction: 请使用 Playwright MCP 浏览器工具实际打开页面，并至少使用 browser_navigate、browser_snapshot 或 browser_evaluate，以及一次用户交互相关的 MCP 工具。
+    toolPrefix: mcp__playwright__
+    metadata:
+      testEvidenceDir: ${artifacts.testEvidence.path}
+    stageOptions:
+      mcpServers:
+        playwright:
+          preset: playwright
+          outputDir: ${artifacts.testEvidence.path}
