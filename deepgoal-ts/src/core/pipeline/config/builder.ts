@@ -2,13 +2,17 @@ import { readFileSync } from 'node:fs';
 import { Pipe } from '../pipe.js';
 import { PermissionMode, createEngineOptions, type EngineOptions } from '../../types/index.js';
 import {
+  createDefaultComponentRegistry,
   createDefaultMcpPresetRegistry,
   createDefaultStageRegistry,
   createStageOptionsResolver,
+  mergeComponentRegistries,
   requireStageFields,
 } from './registry.js';
 import { resolveConfigObject, resolvePipelineContext } from './interpolation.js';
 import type {
+  ComponentRegistry,
+  ComponentRegistryMergeOptions,
   ConfiguredPipeline,
   McpPresetRegistry,
   PipelineBuilderOptions,
@@ -28,8 +32,8 @@ export function createConfiguredPipeline(
 ): ConfiguredPipeline {
   validatePipelineDocument(document);
 
-  const stageRegistry = options.stageRegistry ?? createDefaultStageRegistry();
-  const mcpPresetRegistry = options.mcpPresetRegistry ?? createDefaultMcpPresetRegistry();
+  const stageRegistry = resolveStageRegistry(options);
+  const mcpPresetRegistry = resolveMcpPresetRegistry(options);
   const context = resolvePipelineContext({
     goal: document.goal,
     paths: document.paths,
@@ -63,6 +67,51 @@ export function createConfiguredPipeline(
     engineOptions,
     goal,
   }) as unknown as ConfiguredPipeline;
+}
+
+function resolveStageRegistry(options: PipelineBuilderOptions): StageRegistry {
+  if (options.stageRegistry !== undefined) {
+    return options.stageRegistry;
+  }
+  const defaultRegistry = createDefaultComponentRegistry();
+  if (options.componentRegistry === undefined) {
+    return defaultRegistry.stages ?? createDefaultStageRegistry();
+  }
+  return mergeComponentRegistries(
+    componentRegistryMergeOptions(options),
+    stageComponentRegistry(defaultRegistry),
+    stageComponentRegistry(options.componentRegistry)
+  ).stages ?? {};
+}
+
+function resolveMcpPresetRegistry(options: PipelineBuilderOptions): McpPresetRegistry {
+  if (options.mcpPresetRegistry !== undefined) {
+    return options.mcpPresetRegistry;
+  }
+  const defaultRegistry = createDefaultComponentRegistry();
+  if (options.componentRegistry === undefined) {
+    return defaultRegistry.mcpPresets ?? createDefaultMcpPresetRegistry();
+  }
+  return mergeComponentRegistries(
+    componentRegistryMergeOptions(options),
+    mcpPresetComponentRegistry(defaultRegistry),
+    mcpPresetComponentRegistry(options.componentRegistry)
+  ).mcpPresets ?? {};
+}
+
+function componentRegistryMergeOptions(options: PipelineBuilderOptions): ComponentRegistryMergeOptions {
+  const duplicateKeyPolicy = options.componentRegistryDuplicateKeyPolicy;
+  return duplicateKeyPolicy === undefined ? {} : { duplicateKeyPolicy };
+}
+
+function stageComponentRegistry(registry: ComponentRegistry): ComponentRegistry {
+  const stages = registry.stages;
+  return stages === undefined ? {} : { stages };
+}
+
+function mcpPresetComponentRegistry(registry: ComponentRegistry): ComponentRegistry {
+  const mcpPresets = registry.mcpPresets;
+  return mcpPresets === undefined ? {} : { mcpPresets };
 }
 
 function resolvePipelineGoal(

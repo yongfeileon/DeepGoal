@@ -17,13 +17,20 @@ import {
 } from '../../tools/index.js';
 import type { EngineOptions, McpServerConfig } from '../../types/index.js';
 import type {
+  ComponentRegistry,
+  ComponentRegistryMergeOptions,
+  ExecutorRegistry,
   McpPresetRegistry,
+  NodeRegistry,
+  PipelineTemplate,
+  PipelineTemplateRegistry,
   PipelineMcpServerConfig,
   PipelineStageConfig,
   PipelineStageOptionsConfig,
   ResolvedPipelineContext,
   ResolvedStageConfig,
   StageRegistry,
+  SuperNodeRegistry,
 } from './types.js';
 
 export const CLAUDE_EXECUTOR_NAME = 'claude';
@@ -31,6 +38,163 @@ export const CLAUDE_EXECUTOR_NAME = 'claude';
 const REQUIREMENTS_ARTIFACT_NAME = 'requirements';
 const IMPLEMENTATION_ARTIFACT_NAME = 'implementation';
 const VALIDATION_REPORT_ARTIFACT_NAME = 'validationReport';
+
+type BuiltInPipelineTemplateStage = 'requirements-analysis' | 'development' | 'testing';
+
+interface BuiltInPipelineTemplateInput {
+  readonly name: string;
+  readonly displayName: string;
+  readonly description: string;
+  readonly stages: readonly BuiltInPipelineTemplateStage[];
+  readonly implementationPathDefault: string;
+  readonly validationReportPathDefault: string;
+  readonly requirementsPathReference: string;
+}
+
+export function createComponentRegistry(...registries: readonly ComponentRegistry[]): ComponentRegistry {
+  return mergeComponentRegistries({}, ...registries);
+}
+
+export function mergeComponentRegistries(
+  options: ComponentRegistryMergeOptions,
+  ...registries: readonly ComponentRegistry[]
+): ComponentRegistry {
+  const stages = mergeRegistryGroup('stage', options, registries.map(registry => registry.stages));
+  const nodes = mergeRegistryGroup('node', options, registries.map(registry => registry.nodes));
+  const executors = mergeRegistryGroup('executor', options, registries.map(registry => registry.executors));
+  const mcpPresets = mergeRegistryGroup('MCP preset', options, registries.map(registry => registry.mcpPresets));
+  const pipelines = mergeRegistryGroup('pipeline template', options, registries.map(registry => registry.pipelines));
+  const superNodes = mergeRegistryGroup('super node', options, registries.map(registry => registry.superNodes));
+
+  return removeUndefinedFields({
+    stages,
+    nodes,
+    executors,
+    mcpPresets,
+    pipelines,
+    superNodes,
+  }) as unknown as ComponentRegistry;
+}
+
+export function createDefaultComponentRegistry(): ComponentRegistry {
+  return {
+    stages: createDefaultStageRegistry(),
+    mcpPresets: createDefaultMcpPresetRegistry(),
+    pipelines: createDefaultPipelineTemplateRegistry(),
+  };
+}
+
+export function createDefaultPipelineTemplateRegistry(): PipelineTemplateRegistry {
+  return {
+    sdd: createLinearBuiltInPipelineTemplate({
+      name: 'sdd',
+      displayName: 'SDD Pipeline',
+      description: 'A minimal specification-driven development pipeline using built-in requirement, development, and testing stages.',
+      stages: ['requirements-analysis', 'development', 'testing'],
+      implementationPathDefault: '${parameters.workspace}/implementation.patch',
+      validationReportPathDefault: '${parameters.workspace}/validation-report.json',
+      requirementsPathReference: '${artifacts.requirements.path}',
+    }),
+    tdd: createLinearBuiltInPipelineTemplate({
+      name: 'tdd',
+      displayName: 'TDD Pipeline',
+      description: 'A minimal test-driven development pipeline using the built-in development and testing stages.',
+      stages: ['development', 'testing'],
+      implementationPathDefault: '${parameters.workspace}/implementation.patch',
+      validationReportPathDefault: '${parameters.workspace}/validation-report.json',
+      requirementsPathReference: '${paths.goal}',
+    }),
+    bugfix: createLinearBuiltInPipelineTemplate({
+      name: 'bugfix',
+      displayName: 'BugFix Pipeline',
+      description: 'A minimal bug fix pipeline using built-in requirement, development, and testing stages.',
+      stages: ['requirements-analysis', 'development', 'testing'],
+      implementationPathDefault: '${parameters.workspace}/bugfix.patch',
+      validationReportPathDefault: '${parameters.workspace}/bugfix-validation.json',
+      requirementsPathReference: '${artifacts.requirements.path}',
+    }),
+  };
+}
+
+function createLinearBuiltInPipelineTemplate(input: BuiltInPipelineTemplateInput): PipelineTemplate {
+  const stages = input.stages.map(stage => createBuiltInTemplateStage(stage, input.requirementsPathReference));
+  return {
+    kind: 'yaml',
+    name: input.name,
+    displayName: input.displayName,
+    description: input.description,
+    parameters: {
+      workspace: {
+        required: true,
+      },
+      goalPath: {
+        required: true,
+      },
+      requirementsPath: {
+        default: '${parameters.workspace}/requirements.json',
+      },
+      implementationPath: {
+        default: input.implementationPathDefault,
+      },
+      validationReportPath: {
+        default: input.validationReportPathDefault,
+      },
+    },
+    document: {
+      version: 1,
+      pipeline: {
+        type: 'serial',
+      },
+      paths: {
+        workspace: '${parameters.workspace}',
+        goal: '${parameters.goalPath}',
+      },
+      artifacts: {
+        requirements: {
+          path: '${parameters.requirementsPath}',
+        },
+        implementation: {
+          path: '${parameters.implementationPath}',
+        },
+        validationReport: {
+          path: '${parameters.validationReportPath}',
+        },
+      },
+      defaults: {
+        executor: CLAUDE_EXECUTOR_NAME,
+        cwd: '${paths.workspace}',
+        goalPath: '${paths.goal}',
+      },
+      stages,
+    },
+  };
+}
+
+function createBuiltInTemplateStage(stage: BuiltInPipelineTemplateStage, requirementsPathReference: string): PipelineStageConfig {
+  if (stage === 'requirements-analysis') {
+    return {
+      id: 'requirements',
+      type: 'requirements-analysis',
+      produces: REQUIREMENTS_ARTIFACT_NAME,
+    };
+  }
+  if (stage === 'development') {
+    return {
+      id: 'implementation',
+      type: 'development',
+      consumes: REQUIREMENTS_ARTIFACT_NAME,
+      produces: IMPLEMENTATION_ARTIFACT_NAME,
+      requirementsPath: requirementsPathReference,
+    };
+  }
+  return {
+    id: 'validation',
+    type: 'testing',
+    consumes: [REQUIREMENTS_ARTIFACT_NAME, IMPLEMENTATION_ARTIFACT_NAME],
+    produces: VALIDATION_REPORT_ARTIFACT_NAME,
+    requirementsPath: requirementsPathReference,
+  };
+}
 
 export function createDefaultStageRegistry(): StageRegistry {
   return {
@@ -116,7 +280,7 @@ function applyTestingConventions(stage: ResolvedStageConfig, context: ResolvedPi
   const consumes = normalizeConsumes(stage.consumes);
   return withOptionalResolvedFields(stage, {
     requirementsPath: stage.requirementsPath ?? firstMatchingArtifactPath(context, consumes, [REQUIREMENTS_ARTIFACT_NAME]),
-    artifactPath: stage.artifactPath ?? firstMatchingArtifactPath(context, consumes, [IMPLEMENTATION_ARTIFACT_NAME]),
+    artifactPath: stage.artifactPath ?? firstMatchingArtifactPath(context, [IMPLEMENTATION_ARTIFACT_NAME, ...consumes], []),
     outputPath: stage.outputPath ?? artifactPath(context, stage.produces ?? VALIDATION_REPORT_ARTIFACT_NAME),
   });
 }
@@ -202,6 +366,31 @@ function resolveMcpServers(
     resolved[resolvedName] = preset({ name: serverName, config: serverConfig });
   }
   return resolved;
+}
+
+function mergeRegistryGroup<TRegistry extends StageRegistry | NodeRegistry | ExecutorRegistry | McpPresetRegistry | PipelineTemplateRegistry | SuperNodeRegistry>(
+  label: string,
+  options: ComponentRegistryMergeOptions,
+  registries: readonly (TRegistry | undefined)[]
+): TRegistry | undefined {
+  const duplicateKeyPolicy = options.duplicateKeyPolicy ?? 'reject';
+  const merged: Record<string, unknown> = {};
+  let hasEntries = false;
+
+  for (const registry of registries) {
+    if (registry === undefined) {
+      continue;
+    }
+    for (const [key, value] of Object.entries(registry)) {
+      if (Object.hasOwn(merged, key) && duplicateKeyPolicy === 'reject') {
+        throw new Error(`Duplicate ${label} registry key: ${key}`);
+      }
+      merged[key] = value;
+      hasEntries = true;
+    }
+  }
+
+  return hasEntries ? merged as TRegistry : undefined;
 }
 
 function artifactPath(context: ResolvedPipelineContext, name: string): string | undefined {

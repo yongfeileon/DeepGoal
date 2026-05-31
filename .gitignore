@@ -25,6 +25,8 @@ __e2e__/
 !deepgoal-ts/src/__tests__/
 deepgoal-ts/src/__tests__/*
 !deepgoal-ts/src/__tests__/pipeline-config.test.ts
+!deepgoal-ts/src/__tests__/component-registry.test.ts
+!deepgoal-ts/src/__tests__/*.example.yaml
 !deepgoal-ts/src/__e2e__/
 deepgoal-ts/src/__e2e__/*
 !deepgoal-ts/src/__e2e__/minesweeper-development-flow.e2e.test.ts

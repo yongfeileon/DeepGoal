@@ -1,0 +1,31 @@
+version: 1
+pipeline:
+  type: serial
+paths:
+  workspace: /workspace/sdd
+  goal: /workspace/sdd/goal.md
+artifacts:
+  requirements:
+    path: /workspace/sdd/requirements.json
+  implementation:
+    path: /workspace/sdd/implementation.patch
+  validationReport:
+    path: /workspace/sdd/validation-report.json
+defaults:
+  executor: claude
+  cwd: ${paths.workspace}
+  goalPath: ${paths.goal}
+stages:
+  - id: requirements
+    type: requirements-analysis
+    produces: requirements
+  - id: implementation
+    type: development
+    consumes: requirements
+    produces: implementation
+  - id: validation
+    type: testing
+    consumes:
+      - requirements
+      - implementation
+    produces: validationReport
