@@ -1,0 +1,23 @@
+version: 1
+pipeline:
+  type: serial
+engine:
+  permissionMode: bypassPermissions
+paths:
+  workspace: "${runtime.workspace}"
+  technicalDoc: "${paths.workspace}/_docs/design/architecture.md"
+  roadmap: "${paths.workspace}/_docs/design/roadmap.md"
+defaults:
+  executor: claude
+  cwd: "${paths.workspace}"
+  model: "${env.ANTHROPIC_MODEL}"
+stages:
+  - id: phase-runner
+    type: agent-phase-runner
+    technicalDocPath: "${paths.technicalDoc}"
+    roadmapPath: "${paths.roadmap}"
+    workspaceRoot: "${paths.workspace}"
+    maxIterations: 10
+    allowedTestCommands:
+      - "npm test"
+      - "npm run build"

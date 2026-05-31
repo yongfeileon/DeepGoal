@@ -15,6 +15,8 @@ import {
   PLAYWRIGHT_MCP_SERVER_NAME,
   createPlaywrightMcpStdioConfig,
 } from '../../tools/index.js';
+import { ProgressLoopNode } from '../../agent-phase-runner.js';
+import { ClaudeAgentClient } from '../../engines/claude-agent/client.js';
 import type { EngineOptions, McpServerConfig } from '../../types/index.js';
 import type {
   ComponentRegistry,
@@ -29,6 +31,7 @@ import type {
   PipelineStageOptionsConfig,
   ResolvedPipelineContext,
   ResolvedStageConfig,
+  StageBuildInput,
   StageRegistry,
   SuperNodeRegistry,
 } from './types.js';
@@ -40,6 +43,16 @@ const IMPLEMENTATION_ARTIFACT_NAME = 'implementation';
 const VALIDATION_REPORT_ARTIFACT_NAME = 'validationReport';
 
 type BuiltInPipelineTemplateStage = 'requirements-analysis' | 'development' | 'testing';
+
+interface AgentPhaseRunnerStageConfig {
+  readonly technicalDocPath: string;
+  readonly roadmapPath: string;
+  readonly workspaceRoot: string;
+  readonly allowedTestCommands: readonly string[];
+  readonly maxIterations: number;
+  readonly model?: string | undefined;
+  readonly permissionMode?: string | undefined;
+}
 
 interface BuiltInPipelineTemplateInput {
   readonly name: string;
@@ -113,6 +126,7 @@ export function createDefaultPipelineTemplateRegistry(): PipelineTemplateRegistr
       validationReportPathDefault: '${parameters.workspace}/bugfix-validation.json',
       requirementsPathReference: '${artifacts.requirements.path}',
     }),
+    'agent-phase-runner': createAgentPhaseRunnerPipelineTemplate(),
   };
 }
 
@@ -196,6 +210,63 @@ function createBuiltInTemplateStage(stage: BuiltInPipelineTemplateStage, require
   };
 }
 
+function createAgentPhaseRunnerPipelineTemplate(): PipelineTemplate {
+  return {
+    kind: 'yaml',
+    name: 'agent-phase-runner',
+    displayName: 'Agent Phase Runner',
+    description: 'A pipeline that uses subagents to automatically progress through roadmap phases.',
+    parameters: {
+      workspace: {
+        required: true,
+      },
+      technicalDocPath: {
+        required: true,
+      },
+      roadmapPath: {
+        required: true,
+      },
+      maxIterations: {
+        default: 10,
+      },
+      allowedTestCommands: {
+        default: [],
+      },
+      model: {
+        required: false,
+      },
+      permissionMode: {
+        required: false,
+      },
+    },
+    document: {
+      version: 1,
+      pipeline: {
+        type: 'serial',
+      },
+      paths: {
+        workspace: '${parameters.workspace}',
+        technicalDoc: '${parameters.technicalDocPath}',
+        roadmap: '${parameters.roadmapPath}',
+      },
+      defaults: {
+        executor: CLAUDE_EXECUTOR_NAME,
+      },
+      stages: [
+        {
+          id: 'phase-runner',
+          type: 'agent-phase-runner',
+          technicalDocPath: '${paths.technicalDoc}',
+          roadmapPath: '${paths.roadmap}',
+          workspaceRoot: '${paths.workspace}',
+          maxIterations: '${parameters.maxIterations}',
+          allowedTestCommands: '${parameters.allowedTestCommands}',
+        },
+      ],
+    },
+  };
+}
+
 export function createDefaultStageRegistry(): StageRegistry {
   return {
     'requirements-analysis': {
@@ -218,6 +289,13 @@ export function createDefaultStageRegistry(): StageRegistry {
       requiredFields: ['cwd', 'goalPath', 'requirementsPath', 'outputPath'],
       applyConventions: applyTestingConventions,
       build: input => new TestingNode(createTestingStageExecutor(toTestingConfig(input.resolvedConfig))),
+    },
+    'agent-phase-runner': {
+      type: 'agent-phase-runner',
+      executor: CLAUDE_EXECUTOR_NAME,
+      requiredFields: ['technicalDocPath', 'roadmapPath', 'workspaceRoot', 'maxIterations'],
+      applyConventions: applyAgentPhaseRunnerConventions,
+      build: input => buildAgentPhaseRunnerNode(input),
     },
   };
 }
@@ -283,6 +361,29 @@ function applyTestingConventions(stage: ResolvedStageConfig, context: ResolvedPi
     artifactPath: stage.artifactPath ?? firstMatchingArtifactPath(context, [IMPLEMENTATION_ARTIFACT_NAME, ...consumes], []),
     outputPath: stage.outputPath ?? artifactPath(context, stage.produces ?? VALIDATION_REPORT_ARTIFACT_NAME),
   });
+}
+
+function applyAgentPhaseRunnerConventions(stage: ResolvedStageConfig, _context: ResolvedPipelineContext): ResolvedStageConfig {
+  return stage;
+}
+
+function buildAgentPhaseRunnerNode(input: StageBuildInput): ProgressLoopNode {
+  const config = toAgentPhaseRunnerConfig(input.resolvedConfig);
+  const client = new ClaudeAgentClient();
+  return new ProgressLoopNode(config, client);
+}
+
+function toAgentPhaseRunnerConfig(stage: ResolvedStageConfig): AgentPhaseRunnerStageConfig {
+  const stageRecord = stage as unknown as Record<string, unknown>;
+  return {
+    technicalDocPath: requiredString(stageRecord.technicalDocPath, stage, 'technicalDocPath'),
+    roadmapPath: requiredString(stageRecord.roadmapPath, stage, 'roadmapPath'),
+    workspaceRoot: requiredString(stageRecord.workspaceRoot, stage, 'workspaceRoot'),
+    allowedTestCommands: getStringArray(stageRecord.allowedTestCommands) ?? [],
+    maxIterations: requiredNumber(stageRecord.maxIterations, stage, 'maxIterations'),
+    model: getOptionalString(stageRecord.model),
+    permissionMode: getOptionalString(stageRecord.permissionMode),
+  };
 }
 
 function toRequirementsAnalysisConfig(stage: ResolvedStageConfig): RequirementsAnalysisStageExecutorConfig {
@@ -427,11 +528,29 @@ function getStageField(stage: ResolvedStageConfig, field: string): unknown {
   return (stage as unknown as Record<string, unknown>)[field];
 }
 
-function requiredString(value: string | undefined, stage: PipelineStageConfig | ResolvedStageConfig, field: string): string {
-  if (value === undefined) {
+function requiredString(value: unknown, stage: PipelineStageConfig | ResolvedStageConfig, field: string): string {
+  if (typeof value !== 'string') {
     throw new Error(`Stage ${formatStage(stage)} missing required field: ${field}`);
   }
   return value;
+}
+
+function requiredNumber(value: unknown, stage: PipelineStageConfig | ResolvedStageConfig, field: string): number {
+  if (typeof value !== 'number') {
+    throw new Error(`Stage ${formatStage(stage)} missing required field: ${field}`);
+  }
+  return value;
+}
+
+function getOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function getStringArray(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value.every((item): item is string => typeof item === 'string') ? value : undefined;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

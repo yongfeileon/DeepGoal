@@ -75,6 +75,29 @@ describe('component registry', () => {
     assert.equal(typeof merged.pipelines?.build?.factory, 'function');
   });
 
+  it('includes agent-phase-runner stage in default registry', () => {
+    const registry = createDefaultStageRegistry();
+    const agentPhaseRunner = registry['agent-phase-runner'];
+
+    assert.ok(agentPhaseRunner, 'agent-phase-runner stage should exist in default registry');
+    assert.equal(agentPhaseRunner.type, 'agent-phase-runner');
+    assert.equal(agentPhaseRunner.executor, 'claude');
+    assert.deepEqual(agentPhaseRunner.requiredFields, ['technicalDocPath', 'roadmapPath', 'workspaceRoot', 'maxIterations']);
+  });
+
+  it('includes agent-phase-runner template in default registry', () => {
+    const componentRegistry = createDefaultComponentRegistry();
+    const template = componentRegistry.pipelines?.['agent-phase-runner'];
+
+    assert.ok(template, 'agent-phase-runner template should exist in default registry');
+    assert.equal(template.kind, 'yaml');
+    assert.equal(template.name, 'agent-phase-runner');
+    assert.equal(template.displayName, 'Agent Phase Runner');
+    assert.ok(template.parameters?.workspace?.required, 'workspace parameter should be required');
+    assert.ok(template.parameters?.technicalDocPath?.required, 'technicalDocPath parameter should be required');
+    assert.ok(template.parameters?.roadmapPath?.required, 'roadmapPath parameter should be required');
+  });
+
   it('merges super node components and preserves the precompile protocol shape', async () => {
     const superNode = createTraceSuperNode('adapter');
     const document = {
@@ -142,7 +165,7 @@ describe('component registry', () => {
     assert.equal(defaultComponentRegistry.stages?.development?.type, defaultStageRegistry.development?.type);
     assert.equal(defaultComponentRegistry.stages?.testing?.type, defaultStageRegistry.testing?.type);
     assert.equal(typeof defaultComponentRegistry.mcpPresets?.playwright, 'function');
-    assert.deepEqual(Object.keys(defaultComponentRegistry.pipelines ?? {}).sort(), ['bugfix', 'sdd', 'tdd']);
+    assert.deepEqual(Object.keys(defaultComponentRegistry.pipelines ?? {}).sort(), ['agent-phase-runner', 'bugfix', 'sdd', 'tdd']);
     assert.equal(defaultComponentRegistry.pipelines?.tdd?.kind, 'yaml');
   });
 

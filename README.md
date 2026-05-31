@@ -1,5 +1,3 @@
-[![PyPI version](https://badge.fury.io/py/deepgoal.svg)](https://pypi.org/project/deepgoal/)
-
 [中文版本](./README_CN.md)
 
 # DeepGoal
@@ -10,39 +8,46 @@ DeepGoal is a pre-alpha AI Agent framework for goal-driven automatic programming
 
 DeepGoal is under active design and development. APIs may change before the first stable release.
 
+**Current version:** TypeScript implementation (deepgoal-ts)
+
 ## Requirements
 
-- Python 3.11+
+- Node.js 18+
+- TypeScript 5.3+
 
 ## Installation
 
 ```bash
-pip install deepgoal
+npm install deepgoal
 ```
 
 For local development:
 
 ```bash
-pip install -e ".[dev]"
+cd deepgoal-ts
+npm install
+npm run build
 ```
 
 ## Minimal Example
 
-```python
-from deepgoal.core.executor import Executor
-from deepgoal.core.node import PipelineInput, PipelineOutput, PipelineResult
-from deepgoal.core.pipeline.pipe import Pipe
-from deepgoal.core.types import EngineOptions
+```typescript
+import { Executor } from 'deepgoal/core';
+import type { PipelineInput, PipelineOutput, PipelineResult, EngineOptions } from 'deepgoal/core';
+import { Pipe } from 'deepgoal/core';
 
+class WriteSpecExecutor extends Executor {
+  async execute(input: PipelineInput, options: EngineOptions): Promise<PipelineResult> {
+    return {
+      status: 'ok',
+      output: { primary_path: 'workspace/spec.md' }
+    };
+  }
+}
 
-class WriteSpecExecutor(Executor):
-    async def execute(self, input: PipelineInput, options: EngineOptions) -> PipelineResult:
-        return PipelineResult.ok(PipelineOutput(primary_path="workspace/spec.md"))
-
-
-pipe = Pipe(items=[WriteSpecExecutor()])
-result = await pipe.run(PipelineInput(primary_path="goal.md"))
-print(result.output.primary_path)
+const pipe = new Pipe({ items: [new WriteSpecExecutor()] });
+const result = await pipe.run({ primary_path: 'goal.md' });
+console.log(result.output.primary_path);
 ```
 
 ## Core Idea
